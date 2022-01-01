@@ -28,9 +28,25 @@ func Register(c *fiber.Ctx) error {
 }
 
 func Login(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{
-		"message": "user",
-	})
+
+	var data models.User
+
+	if err := c.BodyParser(&data); err != nil {
+		return err
+	}
+
+	var user models.User
+
+	database.DB.Where("email = ?", data.Email).Find(&user)
+
+	if user.Id == 0 {
+		c.Status(fiber.StatusNotFound)
+		return c.JSON(fiber.Map{
+			"message": "user not found",
+		})
+	}
+
+	return c.JSON(user)
 }
 
 func Logout(c *fiber.Ctx) error {
@@ -40,6 +56,7 @@ func Logout(c *fiber.Ctx) error {
 }
 
 func User(c *fiber.Ctx) error {
+
 	return c.JSON(fiber.Map{
 		"message": "empty",
 	})
