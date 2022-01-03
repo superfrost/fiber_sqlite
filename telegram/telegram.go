@@ -7,8 +7,10 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
 	"gopkg.in/tucnak/telebot.v2"
 )
 
@@ -26,13 +28,56 @@ func Run() {
 
 	Bot = bot
 
+	bot.Handle(telebot.OnPhoto, func(m *telebot.Message) {
+
+		fileId := uuid.NewV4()
+		fileNameFull := fmt.Sprintf("%v.jpg", fileId)
+
+		locatonAndFileName := fmt.Sprintf("./public/img/%s.jpg", fileId)
+		bot.Download(&m.Photo.File, locatonAndFileName)
+		bot.Send(m.Sender, "Processing image... Wait a minute...")
+
+		caption := m.Photo.Caption
+		segmentSize, err := strconv.Atoi(caption)
+		if err != nil {
+			segmentSize = 0
+		}
+
+		if segmentSize < 8 {
+			segmentSize = 8
+		}
+
+		// Send to user processed image
+		cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/segmentation.py", fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
+		out, err := cmd.Output()
+		if err != nil {
+			fmt.Println(out)
+			fmt.Println(err)
+			bot.Send(m.Sender, "Sever error. Try again later.")
+			return
+		}
+
+		resultFileName := fmt.Sprint(string(out))
+		bot.Send(m.Sender, resultFileName)
+
+		p := &telebot.Photo{
+			File:    telebot.FromDisk(fmt.Sprintf("./public/img/result/%v", resultFileName)),
+			Caption: fmt.Sprintf("Segment size: %v", segmentSize),
+		}
+		bot.Send(m.Sender, p)
+	})
+
+	bot.Handle(telebot.OnDocument, func(m *telebot.Message) {
+		bot.Send(m.Sender, "OnDocument")
+		str := fmt.Sprintf("%+v", m.Document)
+		bot.Send(m.Sender, str)
+	})
+
 	r := &telebot.ReplyMarkup{}
 	btnHelp := r.Text("ℹ Help")
 	btnSettings := r.Text("⚙ Settings")
-	r.Contact("Send phone number")
-	btnLocation := r.Location("Send location")
-	r.Data("Show help", "help")
-	r.URL("Visit", "https://google.com")
+
+	r.Reply(r.Row(btnHelp, btnSettings))
 
 	s := &telebot.ReplyMarkup{}
 	btnPrev := s.Data("⬅", "prev")
@@ -40,9 +85,9 @@ func Run() {
 
 	s.Inline(s.Row(btnPrev, btnNext))
 
-	bot.Handle(&btnPrev, func(c *telebot.Callback) {
-		bot.Respond(c, &telebot.CallbackResponse{URL: "google.com"})
-	})
+	// bot.Handle(&btnPrev, func(c *telebot.Callback) {
+	// 	bot.Respond(c, &telebot.CallbackResponse{URL: "google.com"})
+	// })
 
 	bot.Handle("/user", func(m *telebot.Message) {
 
@@ -57,18 +102,39 @@ func Run() {
 
 	})
 
+	bot.Handle("/users", func(m *telebot.Message) {
+		var users []models.User
+		database.DB.Find(&users)
+
+		str := fmt.Sprintf("%v", users)
+		bot.Send(m.Sender, str)
+	})
+
 	bot.Handle("/run", func(m *telebot.Message) {
-		cmd := exec.Command("python", "./python_scripts/scr.py")
+		cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/scr.py")
 		out, err := cmd.Output()
 
 		str := fmt.Sprint(string(out))
 		if err != nil {
 			log.Fatal(err)
+			return
 		}
 		bot.Send(m.Sender, str)
 	})
 
-	r.Reply(r.Row(btnHelp, btnSettings))
+	bot.Handle("/photo", func(m *telebot.Message) {
+		// Send photo
+		p := &telebot.Photo{File: telebot.FromDisk("./public/sky.jpg"), Caption: "This is your photo"}
+
+		bot.Send(m.Sender, p)
+	})
+
+	bot.Handle("/doc", func(m *telebot.Message) {
+		// Send document up to 1.5Gb
+		p := &telebot.Document{File: telebot.FromDisk("./public/sky.jpg"), Caption: "This is your doc", FileName: "Sky"}
+
+		bot.Send(m.Sender, p)
+	})
 
 	bot.Handle(&btnHelp, func(m *telebot.Message) {
 		bot.Send(m.Sender, "HELP!!! ")
@@ -82,8 +148,10 @@ func Run() {
 		bot.Send(m.Sender, "Settings")
 	})
 
-	bot.Handle(&btnLocation, func(m *telebot.Message) {
-		bot.Send(m.Sender, "Location")
+	bot.Handle(telebot.OnText, func(m *telebot.Message) {
+		// all the text messages that weren't
+		// captured by existing handlers
+		bot.Send(m.Sender, "Don't know this command")
 	})
 
 	go bot.Start()

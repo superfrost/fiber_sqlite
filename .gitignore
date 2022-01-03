@@ -1,2 +1,4 @@
 *.db
 .env
+*.exe
+/python_scripts/venv/
