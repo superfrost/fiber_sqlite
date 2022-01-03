@@ -41,9 +41,11 @@ func Run() {
 		locatonAndFileName := fmt.Sprintf("./public/img/%s.jpg", fileId)
 		bot.Download(&m.Photo.File, locatonAndFileName)
 		bot.Send(m.Sender, "Processing image... Wait a minute...")
+		bot.Send(m.Sender, fmt.Sprintf("%+v", m))
 
-		caption := m.Photo.Caption
+		caption := m.Caption
 		segmentSize, err := strconv.Atoi(caption)
+		bot.Send(m.Sender, fmt.Sprint(segmentSize))
 		if err != nil {
 			segmentSize = 0
 		}
@@ -55,7 +57,6 @@ func Run() {
 		// Send to user processed image
 		cwd, _ := os.Getwd()
 		scriptPath := path.Join(cwd, "python_scripts", "segmentation.py")
-		bot.Send(m.Sender, scriptPath)
 		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
 		// For heroku
 		cmd := exec.Command("python", scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
