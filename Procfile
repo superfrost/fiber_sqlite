@@ -5,7 +5,7 @@
 # release: pip install -r requirements.txt
 # release: deactivate
 
-# web: bundle exec go main.go 
+web: go run main.go 
 
 
 # heroku buildpacks:clear  # remove all of the buildpacks first
