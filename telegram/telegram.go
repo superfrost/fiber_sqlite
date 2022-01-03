@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -131,6 +132,14 @@ func Run() {
 			return
 		}
 		bot.Send(m.Sender, str)
+	})
+
+	bot.Handle("/add", func(m *telebot.Message) {
+		someString := "one    two   three four "
+
+		words := strings.Fields(someString)
+
+		fmt.Println(words, len(words)) // [one two three four] 4
 	})
 
 	bot.Handle("/photo", func(m *telebot.Message) {
