@@ -4,7 +4,8 @@ import (
 	"fiber-sqlite/database"
 	"fiber-sqlite/models"
 	"fmt"
-	"log"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -48,7 +49,11 @@ func Run() {
 		}
 
 		// Send to user processed image
-		cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/segmentation.py", fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
+		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/segmentation.py", fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
+
+		// For heroku
+		cmd := exec.Command("python", "./python_scripts/segmentation.py", fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
+
 		out, err := cmd.Output()
 		if err != nil {
 			fmt.Println(out)
@@ -111,34 +116,83 @@ func Run() {
 	})
 
 	bot.Handle("/run", func(m *telebot.Message) {
-		cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/scr.py")
+		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/scr.py")
+
+		cmd := exec.Command("python", "./python_scripts/scr.py")
 		out, err := cmd.Output()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
 		str := fmt.Sprint(string(out))
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err)
 			return
 		}
 		bot.Send(m.Sender, str)
 	})
 
 	bot.Handle("/photo", func(m *telebot.Message) {
-		// Send photo
-		p := &telebot.Photo{File: telebot.FromDisk("./public/sky.jpg"), Caption: "This is your photo"}
+		// Send photo from https://thispersondoesnotexist.com/image
 
+		url := "https://thispersondoesnotexist.com/image"
+		res, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		defer res.Body.Close()
+
+		fileName := uuid.NewV4()
+		file, err := os.Create(fmt.Sprintf("./public/img/person-%v.jpg", fileName))
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		defer file.Close()
+
+		b, err := io.Copy(file, res.Body)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		fmt.Println("File size", b)
+
+		p := &telebot.Photo{File: telebot.FromDisk(fmt.Sprintf("./public/img/person-%v.jpg", fileName)), Caption: "Random person"}
 		bot.Send(m.Sender, p)
 	})
 
 	bot.Handle("/doc", func(m *telebot.Message) {
-		// Send document up to 1.5Gb
-		p := &telebot.Document{File: telebot.FromDisk("./public/sky.jpg"), Caption: "This is your doc", FileName: "Sky"}
+		url := "https://thispersondoesnotexist.com/image"
+		res, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		defer res.Body.Close()
 
+		fileName := uuid.NewV4()
+		file, err := os.Create(fmt.Sprintf("./public/img/person-%v.jpg", fileName))
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		defer file.Close()
+
+		b, err := io.Copy(file, res.Body)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
+		}
+		fmt.Println("File size", b)
+		p := &telebot.Document{File: telebot.FromDisk(fmt.Sprintf("./public/img/person-%v.jpg", fileName)), Caption: "Random person"}
 		bot.Send(m.Sender, p)
 	})
 
 	bot.Handle(&btnHelp, func(m *telebot.Message) {
 		bot.Send(m.Sender, "HELP!!! ")
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 1)
 		bot.Send(m.Sender, "...")
 		time.Sleep(time.Second * 2)
 		bot.Send(m.Sender, "Nobody respond...")
@@ -155,4 +209,8 @@ func Run() {
 	})
 
 	go bot.Start()
+}
+
+func createWorkingDirs() {
+
 }
