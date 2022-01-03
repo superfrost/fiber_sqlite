@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,8 @@ func Run() {
 
 	Bot = bot
 
+	createWorkDirs()
+
 	bot.Handle(telebot.OnPhoto, func(m *telebot.Message) {
 
 		fileId := uuid.NewV4()
@@ -50,10 +53,12 @@ func Run() {
 		}
 
 		// Send to user processed image
-		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/segmentation.py", fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
-
+		cwd, _ := os.Getwd()
+		scriptPath := path.Join(cwd, "python_scripts", "segmentation.py")
+		bot.Send(m.Sender, scriptPath)
+		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
 		// For heroku
-		cmd := exec.Command("python", "./python_scripts/segmentation.py", fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
+		cmd := exec.Command("python", scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
 
 		out, err := cmd.Output()
 		if err != nil {
@@ -220,6 +225,7 @@ func Run() {
 	go bot.Start()
 }
 
-func createWorkingDirs() {
-
+func createWorkDirs() {
+	os.MkdirAll("./public/img/mini/result", 0755)
+	os.MkdirAll("./public/img/result", 0755)
 }
