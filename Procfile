@@ -1,6 +1,5 @@
 # Procfile
-release: pip install -r requirements.txt
-web: bundle exec go server -p $PORT
+web: bundle exec go main.go 
 
 
 # heroku buildpacks:clear  # remove all of the buildpacks first
