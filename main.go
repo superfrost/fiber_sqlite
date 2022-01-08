@@ -2,6 +2,7 @@ package main
 
 import (
 	"fiber-sqlite/database"
+	"fiber-sqlite/helpers"
 	"fiber-sqlite/routes"
 	"fiber-sqlite/telegram"
 	"os"
@@ -13,6 +14,9 @@ import (
 
 func main() {
 	godotenv.Load()
+
+	helpers.CreateWorkDirs()
+
 	database.Connect()
 
 	app := fiber.New()

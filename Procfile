@@ -2,10 +2,10 @@
 
 # release: python -m venv ./python_scripts/venv
 # release: source ./python_scripts/venv/bin/activate
-# release: pip install -r requirements.txt
+release: pip install -r requirements.txt
 # release: deactivate
 
-web: go run main.go 
+web: go run .
 
 
 # heroku buildpacks:clear  # remove all of the buildpacks first

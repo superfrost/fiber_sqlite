@@ -14,26 +14,33 @@ import (
 	"time"
 
 	uuid "github.com/satori/go.uuid"
-	"gopkg.in/tucnak/telebot.v2"
+	tb "gopkg.in/tucnak/telebot.v2"
 )
 
-var Bot *telebot.Bot
+var Bot *tb.Bot
 
+// Start Telegram bot with set of handlers as go routine
 func Run() {
-	bot, err := telebot.NewBot(telebot.Settings{
+	bot, err := tb.NewBot(tb.Settings{
 		Token:  os.Getenv("TELEGRAM_BOT_TOKEN"),
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
+		Poller: &tb.LongPoller{Timeout: 10 * time.Second},
 	})
-
 	if err != nil {
 		panic("Can't connect to telegram bot")
 	}
-
 	Bot = bot
 
-	createWorkDirs()
+	// Inline btns
+	r := &tb.ReplyMarkup{}
+	btnHelp := r.Text("ℹ Help")
+	btnSettings := r.Text("⚙ Settings")
+	r.Reply(r.Row(btnHelp, btnSettings))
 
-	bot.Handle(telebot.OnPhoto, func(m *telebot.Message) {
+	bot.Handle("/id", func(m *tb.Message) {
+		bot.Send(m.Sender, fmt.Sprintf("Your ID: %+v", m.Sender.ID))
+	})
+
+	bot.Handle(tb.OnPhoto, func(m *tb.Message) {
 
 		fileId := uuid.NewV4()
 		fileNameFull := fmt.Sprintf("%v.jpg", fileId)
@@ -49,17 +56,15 @@ func Run() {
 		if err != nil {
 			segmentSize = 0
 		}
-
 		if segmentSize < 8 {
 			segmentSize = 8
 		}
 
-		// Send to user processed image
 		cwd, _ := os.Getwd()
 		scriptPath := path.Join(cwd, "python_scripts", "segmentation.py")
-		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
-		// For heroku
-		cmd := exec.Command("python", scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
+		pythonPath := os.Getenv("PYTHON_PATH")
+
+		cmd := exec.Command(pythonPath, scriptPath, fileNameFull, fmt.Sprint(segmentSize), fileId.String(), "1")
 
 		out, err := cmd.Output()
 		if err != nil {
@@ -72,36 +77,20 @@ func Run() {
 		resultFileName := fmt.Sprint(string(out))
 		bot.Send(m.Sender, resultFileName)
 
-		p := &telebot.Photo{
-			File:    telebot.FromDisk(fmt.Sprintf("./public/img/result/%v", resultFileName)),
+		p := &tb.Photo{
+			File:    tb.FromDisk(fmt.Sprintf("./public/img/result/%v", resultFileName)),
 			Caption: fmt.Sprintf("Segment size: %v", segmentSize),
 		}
 		bot.Send(m.Sender, p)
 	})
 
-	bot.Handle(telebot.OnDocument, func(m *telebot.Message) {
+	bot.Handle(tb.OnDocument, func(m *tb.Message) {
 		bot.Send(m.Sender, "OnDocument")
 		str := fmt.Sprintf("%+v", m.Document)
 		bot.Send(m.Sender, str)
 	})
 
-	r := &telebot.ReplyMarkup{}
-	btnHelp := r.Text("ℹ Help")
-	btnSettings := r.Text("⚙ Settings")
-
-	r.Reply(r.Row(btnHelp, btnSettings))
-
-	s := &telebot.ReplyMarkup{}
-	btnPrev := s.Data("⬅", "prev")
-	btnNext := s.Data("➡", "next")
-
-	s.Inline(s.Row(btnPrev, btnNext))
-
-	// bot.Handle(&btnPrev, func(c *telebot.Callback) {
-	// 	bot.Respond(c, &telebot.CallbackResponse{URL: "google.com"})
-	// })
-
-	bot.Handle("/user", func(m *telebot.Message) {
+	bot.Handle("/user", func(m *tb.Message) {
 
 		var user models.User
 		database.DB.Where("id = ?", "1").Find(&user)
@@ -110,11 +99,10 @@ func Run() {
 			return
 		}
 		str := fmt.Sprintf("User %+v", user)
-		bot.Send(m.Sender, str, r)
-
+		bot.Send(m.Sender, str)
 	})
 
-	bot.Handle("/users", func(m *telebot.Message) {
+	bot.Handle("/users", func(m *tb.Message) {
 		var users []models.User
 		database.DB.Find(&users)
 
@@ -122,34 +110,33 @@ func Run() {
 		bot.Send(m.Sender, str)
 	})
 
-	bot.Handle("/run", func(m *telebot.Message) {
-		// cmd := exec.Command("./python_scripts/venv/Scripts/python.exe", "./python_scripts/scr.py")
+	bot.Handle("/run", func(m *tb.Message) {
 
-		cmd := exec.Command("python", "./python_scripts/scr.py")
+		cwd, _ := os.Getwd()
+		scriptPath := path.Join(cwd, "python_scripts", "scr.py")
+		pythonPath := os.Getenv("PYTHON_PATH")
+
+		cmd := exec.Command(pythonPath, scriptPath)
+
 		out, err := cmd.Output()
 		if err != nil {
 			fmt.Println(err)
+			bot.Send(m.Sender, "Sever error. Try again later.")
 			return
 		}
 
-		str := fmt.Sprint(string(out))
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
+		str := string(out)
 		bot.Send(m.Sender, str)
 	})
 
-	bot.Handle("/add", func(m *telebot.Message) {
+	bot.Handle("/add", func(m *tb.Message) {
+
 		someString := "one    two   three four "
-
 		words := strings.Fields(someString)
-
-		fmt.Println(words, len(words)) // [one two three four] 4
+		fmt.Println(words, len(words))
 	})
 
-	bot.Handle("/photo", func(m *telebot.Message) {
-		// Send photo from https://thispersondoesnotexist.com/image
+	bot.Handle("/photo", func(m *tb.Message) {
 
 		url := "https://thispersondoesnotexist.com/image"
 		res, err := http.Get(url)
@@ -174,11 +161,11 @@ func Run() {
 		}
 		fmt.Println("File size", b)
 
-		p := &telebot.Photo{File: telebot.FromDisk(fmt.Sprintf("./public/img/person-%v.jpg", fileName)), Caption: "Random person"}
+		p := &tb.Photo{File: tb.FromDisk(fmt.Sprintf("./public/img/person-%v.jpg", fileName)), Caption: "Random person"}
 		bot.Send(m.Sender, p)
 	})
 
-	bot.Handle("/doc", func(m *telebot.Message) {
+	bot.Handle("/doc", func(m *tb.Message) {
 		url := "https://thispersondoesnotexist.com/image"
 		res, err := http.Get(url)
 		if err != nil {
@@ -201,32 +188,38 @@ func Run() {
 			return
 		}
 		fmt.Println("File size", b)
-		p := &telebot.Document{File: telebot.FromDisk(fmt.Sprintf("./public/img/person-%v.jpg", fileName)), Caption: "Random person"}
+		p := &tb.Document{File: tb.FromDisk(fmt.Sprintf("./public/img/person-%v.jpg", fileName)), Caption: "Random person"}
 		bot.Send(m.Sender, p)
 	})
 
-	bot.Handle(&btnHelp, func(m *telebot.Message) {
+	bot.Handle("/version", func(m *tb.Message) {
+		cmd := exec.Command("python", "--version")
+		out, err := cmd.Output()
+		if err != nil {
+			fmt.Println(err)
+			bot.Send(m.Sender, "Sever error. Try again later.")
+			return
+		}
+
+		result := string(out)
+		bot.Send(m.Sender, result)
+	})
+	bot.Handle(&btnHelp, func(m *tb.Message) {
 		bot.Send(m.Sender, "HELP!!! ")
 		time.Sleep(time.Second * 1)
 		bot.Send(m.Sender, "...")
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 1)
 		bot.Send(m.Sender, "Nobody respond...")
 	})
 
-	bot.Handle(&btnSettings, func(m *telebot.Message) {
+	bot.Handle(&btnSettings, func(m *tb.Message) {
 		bot.Send(m.Sender, "Settings")
 	})
 
-	bot.Handle(telebot.OnText, func(m *telebot.Message) {
-		// all the text messages that weren't
-		// captured by existing handlers
+	bot.Handle(tb.OnText, func(m *tb.Message) {
+		// all the text messages that weren't captured by existing handlers
 		bot.Send(m.Sender, "Don't know this command")
 	})
 
 	go bot.Start()
-}
-
-func createWorkDirs() {
-	os.MkdirAll("./public/img/mini/result", 0755)
-	os.MkdirAll("./public/img/result", 0755)
 }
