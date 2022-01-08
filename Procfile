@@ -1,11 +1,11 @@
 # Procfile
 
-# release: python -m venv ./python_scripts/venv
-# release: source ./python_scripts/venv/bin/activate
+release: python -m venv ./python_scripts/venv
+release: source ./python_scripts/venv/bin/activate
 release: pip install -r requirements.txt
-# release: deactivate
+release: deactivate
 
-web: go run .
+web: fiber-sqlite
 
 
 # heroku buildpacks:clear  # remove all of the buildpacks first
