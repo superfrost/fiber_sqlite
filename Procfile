@@ -1,9 +1,9 @@
 # Procfile
 
-release: python -m venv ./python_scripts/venv
-release: source ./python_scripts/venv/bin/activate
-release: pip install -r requirements.txt
-release: deactivate
+# release: python -m venv ./python_scripts/venv
+# release: source ./python_scripts/venv/bin/activate
+# release: pip install -r requirements.txt
+# release: deactivate
 
 web: fiber-sqlite
 
