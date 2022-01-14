@@ -193,7 +193,7 @@ func Run() {
 	})
 
 	bot.Handle("/version", func(m *tb.Message) {
-		cmd := exec.Command("python", "--version")
+		cmd := exec.Command(os.Getenv("PYTHON_PATH"), "--version")
 		out, err := cmd.Output()
 		if err != nil {
 			fmt.Println(err)
@@ -204,6 +204,7 @@ func Run() {
 		result := string(out)
 		bot.Send(m.Sender, result)
 	})
+
 	bot.Handle(&btnHelp, func(m *tb.Message) {
 		bot.Send(m.Sender, "HELP!!! ")
 		time.Sleep(time.Second * 1)
