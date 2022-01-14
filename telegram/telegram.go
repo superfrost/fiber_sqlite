@@ -3,6 +3,7 @@ package telegram
 import (
 	"fiber-sqlite/database"
 	"fiber-sqlite/models"
+	"fiber-sqlite/service"
 	"fmt"
 	"io"
 	"net/http"
@@ -203,6 +204,20 @@ func Run() {
 
 		result := string(out)
 		bot.Send(m.Sender, result)
+	})
+
+	bot.Handle("/mail", func(m *tb.Message) {
+		to := "lalala@gmail.com"
+		subj := "Segmentation service"
+		msg := "<h1>Hi from telegram bot</h1>"
+		err := service.SendEmail(to, subj, msg)
+		if err != nil {
+			fmt.Println(err)
+			bot.Send(m.Sender, "Sever error. Try again later.")
+			return
+		}
+
+		bot.Send(m.Sender, "Mail was sent. Check your email")
 	})
 
 	bot.Handle(&btnHelp, func(m *tb.Message) {
